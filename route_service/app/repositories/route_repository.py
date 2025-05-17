@@ -1,18 +1,43 @@
+import json
+import os
 from typing import List, Optional
+
+from aiokafka import AIOKafkaProducer
 from bson import ObjectId
 
 from app.models import Route
 from app.db import db
 
 
+KAFKA_TOPIC = "routes-topic"
+BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+
+
 class RouteRepository:
     collection = db.routes
 
-    @staticmethod
-    async def create_route(start: str, end: str, waypoints: list[str]) -> Route:
-        doc = {"start_point": start, "end_point": end, "waypoints": waypoints}
-        result = await RouteRepository.collection.insert_one(doc)
-        return Route(route_id=str(result.inserted_id), start_point=start, end_point=end, waypoints=waypoints)
+    def __init__(self):
+        self.producer = AIOKafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
+
+    async def start(self):
+        await self.producer.start()
+
+    async def stop(self):
+        await self.producer.stop()
+
+    async def create_route(self, start: str, end: str, waypoints: list[str]) -> Route:
+        route_id = str(ObjectId())
+        event = {
+            "type": "route_created",
+            "payload": {
+                "route_id": route_id,
+                "start_point": start,
+                "end_point": end,
+                "waypoints": waypoints,
+            }
+        }
+        await self.producer.send_and_wait(KAFKA_TOPIC, json.dumps(event).encode())
+        return Route(route_id=route_id, start_point=start, end_point=end, waypoints=waypoints)
 
     @staticmethod
     async def get_route_by_id(route_id: str) -> Optional[Route]:

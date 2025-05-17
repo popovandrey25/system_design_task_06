@@ -9,7 +9,8 @@ from app.auth import verify_token
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
-service = RouteService(repo=RouteRepository())
+repo = RouteRepository()
+service = RouteService(repo=repo)
 
 @router.post("", response_model=RouteResponse, dependencies=[Depends(verify_token)])
 async def create_route(data: RouteCreateRequest):

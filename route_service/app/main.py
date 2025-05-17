@@ -5,12 +5,15 @@ from fastapi import FastAPI
 
 from app.db import ensure_indexes
 from app.routers import route_router
+from app.routers.route_router import repo
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await repo.start()
     await ensure_indexes()
     yield
+    await repo.stop()
 
 app = FastAPI(
     title="Route Service",
